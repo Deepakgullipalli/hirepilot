@@ -1,0 +1,15 @@
+<!-- Mark + wordmark -->
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="48" viewBox="0 0 280 48">
+  <!-- mark -->
+  <g transform="translate(0,0)">
+    <circle cx="24" cy="24" r="22" fill="#111"></circle>
+    <circle cx="24" cy="24" r="16" fill="none" stroke="#2f2f2f" stroke-width="2"></circle>
+    <path d="M6 23 L42 12 L31 42 L25 32 L17 40 L15 38 L22 29 Z" fill="#fff"></path>
+    <path d="M39 13 L31 42 L25 32 Z" fill="#dbeafe"></path>
+  </g>
+  <!-- wordmark -->
+  <g transform="translate(58,9)" fill="#111">
+    <text x="0" y="18" font-family="Inter, ui-sans-serif, system-ui, -apple-system" font-size="20" font-weight="700">HirePilot</text>
+    <text x="0" y="36" font-family="Inter, ui-sans-serif, system-ui, -apple-system" font-size="12" fill="#6b7280">build your founding team</text>
+  </g>
+</svg>

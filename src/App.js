@@ -234,7 +234,9 @@ export default function App() {
   return (
     <div className="container">
       <div className="header">
-        <div className="title">HirePilot — build your founding team of 5 (React)</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/hirepilot-logo.svg" alt="HirePilot" height="32" />
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input ref={fileRef} type="file" accept="application/json" style={{ display: "none" }} onChange={onUpload} />
           <Button onClick={() => fileRef.current?.click()}>Upload JSON</Button>
