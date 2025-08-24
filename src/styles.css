@@ -28,7 +28,14 @@ body {
   background: #fff; min-width: 260px;
 }
 .checkbox { margin-right: 6px; }
-.control-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* Controls: top row is search | salary, aligned */
+.control-row { display: grid; gap: 12px; align-items: center; }
+@media (min-width: 760px) {
+  .control-row {
+    grid-template-columns: minmax(300px, 1fr) 220px;
+  }
+}
+
 
 .badge {
   display: inline-block; padding: 4px 8px; font-size: 12px; border-radius: 999px; border: 1px solid #ccc;
