@@ -12,6 +12,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - Auto-pick 5 (role coverage + region diversity)
  *  - Why (explain rationale)
  *  - Export shortlist as JSON
+ *  - Pagination
  */
 
 const kw = {
@@ -190,6 +191,10 @@ export default function App() {
   const [shortlist, setShortlist] = useState([]);
   const fileRef = useRef();
 
+  // pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const demo = params.get("demo");
@@ -217,7 +222,52 @@ export default function App() {
   }, [raw, q]);
 
   const scored = useMemo(() => candidates.map((c) => ({ cand: c, meta: computeScore(c, weights) })), [candidates, weights]);
-  const top = useMemo(() => scored.sort((a, b) => b.meta.score - a.meta.score).slice(0, 200), [scored]);
+
+  // full list sorted; (removed .slice(0, 200))
+  const top = useMemo(() => scored.sort((a, b) => b.meta.score - a.meta.score), [scored]);
+
+  // reset to page 1 when data or sort drivers change
+  useEffect(() => { setPage(1); }, [raw, q, weights]);
+
+  const totalRows = top.length;
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const currentRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return top.slice(start, start + pageSize);
+  }, [top, page, pageSize]);
+
+  const goto = (n) => setPage(Math.min(Math.max(1, n), pageCount));
+  const pageWindow = useMemo(() => {
+    const start = Math.max(1, page - 2);
+    const end = Math.min(pageCount, start + 4);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [page, pageCount]);
+
+  const Pager = () => (
+    <div className="pagebar">
+      <div className="small">
+        Showing <strong>{Math.min((page - 1) * pageSize + 1, totalRows)}</strong>–<strong>{Math.min(page * pageSize, totalRows)}</strong>
+        {" "}of <strong>{totalRows}</strong>
+      </div>
+      <div className="pages">
+        <button className="pagebtn" onClick={() => goto(1)} disabled={page === 1}>« First</button>
+        <button className="pagebtn" onClick={() => goto(page - 1)} disabled={page === 1}>‹ Prev</button>
+        {pageWindow.map(n => (
+          <button key={n} className={`pagebtn ${n === page ? 'active' : ''}`} onClick={() => goto(n)}>{n}</button>
+        ))}
+        <button className="pagebtn" onClick={() => goto(page + 1)} disabled={page === pageCount}>Next ›</button>
+        <button className="pagebtn" onClick={() => goto(pageCount)} disabled={page === pageCount}>Last »</button>
+        <select className="pagesel" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+          {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}/page</option>)}
+        </select>
+      </div>
+    </div>
+  );
 
   const runAutoPick = () => {
     const picks = autoPick(candidates, weights, { preferDiversity, budgetAvg });
@@ -232,21 +282,22 @@ export default function App() {
   };
 
   return (
-    <div className="container">
-      <div className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/hirepilot-logo.svg" alt="HirePilot" height="32" />
+    <div className="app">
+      <div className="container">
+        <div className="header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/hirepilot-logo.svg" alt="HirePilot" height="32" />
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input ref={fileRef} type="file" accept="application/json" style={{ display: "none" }} onChange={onUpload} />
+            <Button onClick={() => fileRef.current?.click()}>Upload JSON</Button>
+            <Button className="secondary" onClick={runAutoPick}>Auto-pick 5</Button>
+            <Button className="secondary" onClick={exportShortlist}>Export</Button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input ref={fileRef} type="file" accept="application/json" style={{ display: "none" }} onChange={onUpload} />
-          <Button onClick={() => fileRef.current?.click()}>Upload JSON</Button>
-          <Button className="secondary" onClick={runAutoPick}>Auto-pick 5</Button>
-          <Button className="secondary" onClick={exportShortlist}>Export</Button>
-        </div>
-      </div>
 
-      <div className="grid mt-6">
-        <Card>
+        <div className="grid mt-6">
+          <Card>
           <div className="control-row">
             <input
               className="input"
@@ -278,106 +329,112 @@ export default function App() {
           </div>
         </Card>
 
-        <Card>
-          <div className="snapshot">
-            <div className="row"><span>Total candidates</span><strong>{candidates.length}</strong></div>
-            <div className="row"><span>Shortlist</span><strong>{shortlist.length}</strong></div>
-            <div className="metrics mt-2">
-              {["APAC", "EU", "NA", "LATAM", "MEA", "Unknown"].map((r) => (
-                <span key={r} className="badge">{r}: {candidates.filter(c => regionOf(c.location) === r).length}</span>
-              ))}
+          <Card>
+            <div className="snapshot">
+              <div className="row"><span>Total candidates</span><strong>{candidates.length}</strong></div>
+              <div className="row"><span>Shortlist</span><strong>{shortlist.length}</strong></div>
+              <div className="metrics mt-2">
+                {["APAC", "EU", "NA", "LATAM", "MEA", "Unknown"].map((r) => (
+                  <span key={r} className="badge">{r}: {candidates.filter(c => regionOf(c.location) === r).length}</span>
+                ))}
+              </div>
             </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid mt-6">
-        <div>
-          <div className="list">
-            {top.map(({ cand, meta }, idx) => (
-              <Card key={(cand.email || cand.name || idx) + idx}>
-                <div className="row">
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="candidate-header">
-                      <div style={{ fontWeight: 600, maxWidth: "60ch", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {blind ? "Candidate" : (cand.name || cand.email || "Unnamed")}
-                      </div>
-                      <Badge>{regionOf(cand.location)}</Badge>
-                      <Badge>Score {meta.score}</Badge>
-                      {meta.salary && <Badge>${(meta.salary).toLocaleString()}</Badge>}
-                    </div>
-                    <div className="candidate-sub">{cand.location || "—"}</div>
-                    <div className="role-chips">
-                      {Array.from(meta.cats).slice(0, 7).map((c) => <Chip key={c}>{c}</Chip>)}
-                    </div>
-                    {!!(cand.skills?.length) && (
-                      <div className="mt-2"><span className="small">Skills: </span>{(cand.skills || []).slice(0, 12).join(", ")}</div>
-                    )}
-                    {!!(cand.work_experiences?.length) && (
-                      <div className="mt-2"><span className="small">Experience: </span>{(cand.work_experiences || []).slice(0, 3).map(w => `${w.company} — ${w.roleName}`).join(" · ")}</div>
-                    )}
-                  </div>
-                  <div className="actions">
-                    <Button className="small" onClick={() =>
-                      setShortlist((s) => s.find(x => x.email === cand.email) ? s : [...s, cand])
-                    }>
-                      Shortlist
-                    </Button>
-                    <Button className="small" onClick={() => alert(explain(cand).bullets.join("\n"))}>
-                      Why
-                    </Button>
-                  </div>
-
-                </div>
-              </Card>
-            ))}
-          </div>
+          </Card>
         </div>
 
-        <div className="sticky">
-          <Card>
-            <div className="row">
-              <h3 style={{ margin: 0 }}>Shortlist ({shortlist.length})</h3>
-              <Button className="danger small" onClick={() => setShortlist([])}>Clear</Button>
-            </div>
-            <div className="mt-2">
-              {shortlist.map((c, i) => (
-                <div key={c.email || c.name || i} className="short-card">
+        <div className="grid mt-6">
+          <div>
+            {/* TOP PAGER */}
+            <Pager />
+
+            <div className="list">
+              {currentRows.map(({ cand, meta }, idx) => (
+                <Card key={(cand.email || cand.name || idx) + idx}>
                   <div className="row">
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div className="short-title">{blind ? `Candidate ${i + 1}` : (c.name || c.email)}</div>
-                      <div className="small">{regionOf(c.location)} • {c.location || "—"}</div>
-                      <div className="small">{c.annual_salary_expectation?.["full-time"] || "—"}</div>
+                      <div className="candidate-header">
+                        <div style={{ fontWeight: 600, maxWidth: "60ch", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {blind ? "Candidate" : (cand.name || cand.email || "Unnamed")}
+                        </div>
+                        <Badge>{regionOf(cand.location)}</Badge>
+                        <Badge>Score {meta.score}</Badge>
+                        {meta.salary && <Badge>${(meta.salary).toLocaleString()}</Badge>}
+                      </div>
+                      <div className="candidate-sub">{cand.location || "—"}</div>
+                      <div className="role-chips">
+                        {Array.from(meta.cats).slice(0, 7).map((c) => <Chip key={c}>{c}</Chip>)}
+                      </div>
+                      {!!(cand.skills?.length) && (
+                        <div className="mt-2"><span className="small">Skills: </span>{(cand.skills || []).slice(0, 12).join(", ")}</div>
+                      )}
+                      {!!(cand.work_experiences?.length) && (
+                        <div className="mt-2"><span className="small">Experience: </span>{(cand.work_experiences || []).slice(0, 3).map(w => `${w.company} — ${w.roleName}`).join(" · ")}</div>
+                      )}
                     </div>
-                    <button className="small" style={{ border: "none", background: "transparent", color: "#e11d48", cursor: "pointer" }}
-                      onClick={() => setShortlist((s) => s.filter(x => x !== c))}>remove</button>
+                    <div className="actions">
+                      <Button className="small" onClick={() =>
+                        setShortlist((s) => s.find(x => x.email === cand.email) ? s : [...s, cand])
+                      }>
+                        Shortlist
+                      </Button>
+                      <Button className="small" onClick={() => alert(explain(cand).bullets.join("\n"))}>
+                        Why
+                      </Button>
+                    </div>
                   </div>
-                  <div className="small mt-2">
-                    {explain(c).bullets.map((b, idx) => <div key={idx}>• {b}</div>)}
-                  </div>
-                </div>
+                </Card>
               ))}
             </div>
-          </Card>
 
-          <Card className="mt-2">
-            <h3 style={{ marginTop: 0 }}>Fairness & guardrails</h3>
-            <ul className="fairlist">
-              <li>Blind mode hides identity while screening.</li>
-              <li>Scoring favours skills, experience, and budget — no protected attributes.</li>
-              <li>“Prefer region diversity” seeks breadth across APAC, EU, NA, LATAM, MEA when possible.</li>
-            </ul>
-          </Card>
+            {/* BOTTOM PAGER */}
+            <Pager />
+          </div>
 
-          <Card className="mt-2">
-            <h3 style={{ marginTop: 0 }}>How I’d extend this</h3>
-            <ul className="fairlist">
-              <li>Interview scheduler + email templates.</li>
-              <li>LLM résumé summarizer and duplicate-applicant detection.</li>
-              <li>Role templates (FE, BE, Data/ML, DevOps, PM/Design).</li>
-              <li>Score audits and snapshots.</li>
-            </ul>
-          </Card>
+          <div className="sticky">
+            <Card>
+              <div className="row">
+                <h3 style={{ margin: 0 }}>Shortlist ({shortlist.length})</h3>
+                <Button className="danger small" onClick={() => setShortlist([])}>Clear</Button>
+              </div>
+              <div className="mt-2">
+                {shortlist.map((c, i) => (
+                  <div key={c.email || c.name || i} className="short-card">
+                    <div className="row">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="short-title">{blind ? `Candidate ${i + 1}` : (c.name || c.email)}</div>
+                        <div className="small">{regionOf(c.location)} • {c.location || "—"}</div>
+                        <div className="small">{c.annual_salary_expectation?.["full-time"] || "—"}</div>
+                      </div>
+                      <button className="small" style={{ border: "none", background: "transparent", color: "#e11d48", cursor: "pointer" }}
+                        onClick={() => setShortlist((s) => s.filter(x => x !== c))}>remove</button>
+                    </div>
+                    <div className="small mt-2">
+                      {explain(c).bullets.map((b, idx) => <div key={idx}>• {b}</div>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="mt-2">
+              <h3 style={{ marginTop: 0 }}>Fairness & guardrails</h3>
+              <ul className="fairlist">
+                <li>Blind mode hides identity while screening.</li>
+                <li>Scoring favours skills, experience, and budget — no protected attributes.</li>
+                <li>“Prefer region diversity” seeks breadth across APAC, EU, NA, LATAM, MEA when possible.</li>
+              </ul>
+            </Card>
+
+            <Card className="mt-2">
+              <h3 style={{ marginTop: 0 }}>How I’d extend this</h3>
+              <ul className="fairlist">
+                <li>Interview scheduler + email templates.</li>
+                <li>LLM résumé summarizer and duplicate-applicant detection.</li>
+                <li>Role templates (FE, BE, Data/ML, DevOps, PM/Design).</li>
+                <li>Score audits and snapshots.</li>
+              </ul>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

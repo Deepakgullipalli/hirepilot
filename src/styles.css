@@ -124,3 +124,69 @@ input[type="number"] {
   line-height: 1;
 }
 
+.app {
+  min-height: 100dvh;           /* fill screen, safe on mobile too */
+  display: grid;
+  grid-template-rows: auto 1fr auto;  /* header | main | footer */
+}
+.main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-content: start;         /* keeps content at the top */
+}
+@media (min-width: 980px) {
+  .main { grid-template-columns: 2fr 1fr; }
+}
+.footer {
+  padding: 12px 0 24px;
+  color: #777;
+  font-size: 12px;
+}
+
+/* ---- Pagination ---- */
+/* ---- Pagination ---- */
+.pagebar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin: 8px 0;
+}
+
+.pages { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Buttons: visible text in all modes */
+.pagebtn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #111;                 /* force text color */
+  -webkit-text-fill-color: #111; /* Safari */
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pagebtn.active {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  -webkit-text-fill-color: #fff; /* Safari */
+}
+.pagebtn[disabled] {
+  background: #f5f5f5;
+  color: #888;
+  -webkit-text-fill-color: #888;
+  cursor: not-allowed;
+  opacity: 1;                  /* keep text readable */
+}
+
+/* Page size select */
+.pagesel {
+  height: 36px;
+  /* padding: 6px 10px; */
+  /* border-radius: 8px; */
+  border: 1px solid #ccc;
+  font-weight: 600;
+}
